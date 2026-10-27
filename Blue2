@@ -1,1 +1,986 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Elephant Memory</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700&family=Spectral:wght@500;600&display=swap">
+<style>
+/* Layout: one narrow column, one screen per phase, big type and big tap targets for older eyes.
+   Look: a calm blue gradient with white text. Gold marks only what needs attention. */
+:root {
+  --bg: #0b2a5b;
+  --bg-top: #15408a;
+  --face: #0e2f66;
+  --card: #1a4a92;
+  --line: #9cc3f2;
+  --fg: #ffffff;
+  --muted: #e0ebfb;
+  --sky: #bfe0ff;
+  --sky-ink: #072047;
+  --sky-ink-2: #173a6e;
+  --gold: #ffd37a;
+  --gold-ink: #231600;
+  --good: #c4f7d6;
+  --bad: #ffe3d9;
+  --font-word: "Spectral", Georgia, "Times New Roman", serif;
+  --font-body: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ele-body: #d9e5f7;
+  --ele-shade: #b5c8e6;
+  --ele-deep: #94acd3;
+  --ele-tusk: #fff4d6;
+  --ele-eye: #0b2a5b;
+  color-scheme: dark;
+}
+:root[data-phase="waiting"] { --bg: #071a3c; --bg-top: #0e2d62; }
 
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { font-size: 125%; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background-color: var(--bg);
+  background-image: linear-gradient(180deg, var(--bg-top) 0%, var(--bg) 100%);
+  background-repeat: no-repeat;
+  color: var(--fg);
+  font-family: var(--font-body);
+  font-weight: 500;
+  font-size: 1rem;
+  line-height: 1.5;
+  padding-block: 20px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  -webkit-text-size-adjust: 100%;
+}
+.app { max-width: 30rem; margin: 0 auto; min-height: 100%; display: flex; flex-direction: column; }
+.screen { flex: 1; display: flex; flex-direction: column; gap: 1.5rem; min-width: 0; }
+
+h1, h2 { font-family: var(--font-word); font-weight: 600; margin: 0; text-wrap: balance; line-height: 1.12; }
+h1 { font-size: 2.1rem; }
+h2 { font-size: 1.85rem; }
+p { margin: 0; }
+.lede { color: var(--muted); max-width: 34ch; font-size: 1.1rem; }
+.label { font-size: 0.95rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.group { display: flex; flex-direction: column; gap: 0.7rem; }
+
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+
+/* Setup */
+.mark { display: block; width: 7.5rem; max-width: 100%; height: auto; margin-bottom: 0.3rem; }
+.mark-sm { width: 6rem; }
+.times { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.6rem; }
+@media (min-width: 34rem) { .times { grid-template-columns: repeat(4, 1fr); } }
+.chip {
+  min-height: 76px; padding: 0.4rem; border-radius: 16px; border: 2px solid var(--line);
+  background: var(--card); color: var(--fg);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1;
+}
+.chip b { font-size: 2rem; font-weight: 700; }
+.chip span { font-size: 0.95rem; }
+.chip[aria-pressed="true"] { background: var(--sky); border-color: var(--sky); color: var(--sky-ink); }
+
+.styles { display: flex; flex-direction: column; gap: 0.6rem; }
+.style {
+  display: flex; align-items: center; gap: 0.9rem; width: 100%; min-height: 80px;
+  padding: 0.7rem 1rem; text-align: left; border-radius: 16px; border: 2px solid var(--line);
+  background: var(--card); color: var(--fg);
+}
+.style .radio { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--sky); }
+.style .txt { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.style .txt b { font-size: 1.2rem; font-weight: 700; }
+.style .txt span { font-size: 1rem; color: var(--muted); }
+.pill {
+  flex: none; font-style: normal; font-weight: 700; font-size: 0.9rem; padding: 0.3rem 0.7rem;
+  border-radius: 999px; background: var(--gold); color: var(--gold-ink);
+}
+.style[aria-pressed="true"] { background: var(--sky); border-color: var(--sky); color: var(--sky-ink); }
+.style[aria-pressed="true"] .txt span { color: var(--sky-ink-2); }
+.style[aria-pressed="true"] .radio { border-color: var(--sky-ink); background: radial-gradient(circle, var(--sky-ink) 0 42%, transparent 46%); }
+
+.btn {
+  min-height: 68px; width: 100%; border: 0; border-radius: 16px;
+  background: var(--gold); color: var(--gold-ink); font-weight: 700; font-size: 1.25rem;
+}
+.btn:active { filter: brightness(0.92); }
+.btn-quiet {
+  min-height: 60px; width: 100%; border-radius: 16px; font-size: 1.15rem; font-weight: 600;
+  border: 2px solid var(--sky); background: transparent; color: var(--fg);
+}
+.note { color: var(--muted); font-size: 1.05rem; text-align: center; }
+.push { margin-top: auto; display: flex; flex-direction: column; gap: 0.9rem; }
+
+/* Study */
+.study-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+.study-head h2 { font-size: 1.7rem; }
+.listen {
+  flex: none; display: inline-flex; align-items: center; gap: 0.5rem; min-height: 58px; padding: 0 1.15rem 0 0.95rem;
+  border: 0; border-radius: 999px; background: var(--sky); color: var(--sky-ink); font-weight: 700; font-size: 1.1rem;
+}
+.listen svg { flex: none; }
+.listen.on .wave { animation: pulse 1s ease-in-out infinite; }
+.listen.on .wave + .wave { animation-delay: 0.25s; }
+@keyframes pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+.words { display: flex; flex-direction: column; }
+.word {
+  font-family: var(--font-word); font-weight: 500; font-size: clamp(2.1rem, 10vw, 2.8rem);
+  line-height: 1.1; padding: 0.45rem 0; border-bottom: 1px solid rgba(191, 224, 255, 0.35);
+}
+.word:last-child { border-bottom: 0; }
+.foot { display: flex; align-items: center; gap: 1.25rem; }
+.dial { flex: none; width: 8.75rem; height: auto; }
+.secs b { display: block; font-size: 3.2rem; line-height: 1; font-weight: 700; font-variant-numeric: tabular-nums; }
+.secs span { color: var(--muted); font-size: 1.1rem; }
+
+/* Waiting: nothing flashes. One faint elephant strolls past. */
+.waiting { justify-content: center; align-items: center; text-align: center; gap: 0.6rem; }
+.waiting .back { color: var(--fg); font-size: 1.5rem; font-family: var(--font-word); font-weight: 500; }
+.waiting .at { color: var(--muted); font-size: 1.15rem; }
+.waiting .hint { color: var(--muted); font-size: 1.05rem; max-width: 30ch; margin-top: 0.6rem; }
+.waiting .end {
+  margin-top: 2.5rem; background: none; border: 0; color: var(--muted);
+  font-size: 1.05rem; padding: 1rem 1.25rem; text-decoration: underline;
+}
+
+/* A faint elephant crosses the waiting screen once every 20 seconds: 14 seconds of walking, 6 of rest */
+.lane {
+  position: fixed; left: 0; right: 0; bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
+  height: 4.5rem; overflow: hidden; pointer-events: none;
+}
+.walker { position: absolute; left: 0; bottom: 0; width: 5.5rem; opacity: 0.35; animation: cross 20s linear infinite; }
+.walker svg { display: block; width: 100%; height: auto; animation: bob 1.3s ease-in-out infinite; }
+@keyframes cross { 0% { transform: translateX(-6rem); } 70%, 100% { transform: translateX(100vw); } }
+@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
+@media (prefers-reduced-motion: reduce) { .lane { display: none; } .listen.on .wave { animation: none; } }
+
+/* Ready */
+.ready { justify-content: center; }
+.ready .btn { margin-top: 0.5rem; }
+
+/* Typing quiz */
+.fields { display: flex; flex-direction: column; gap: 0.6rem; }
+.field {
+  width: 100%; background: var(--face); border: 2px solid var(--line); border-radius: 14px;
+  padding: 0.55rem 0.9rem; font-family: var(--font-word); font-weight: 500; font-size: 1.8rem; color: var(--fg);
+}
+.field:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(255, 211, 122, 0.45); }
+
+/* Word search */
+.grid {
+  display: grid; grid-template-columns: repeat(var(--n), 1fr); gap: 3px;
+  width: 100%; max-width: 12.5rem; align-self: center;
+  touch-action: none; user-select: none; -webkit-user-select: none;
+}
+.cell {
+  aspect-ratio: 1; display: grid; place-items: center; background: var(--card);
+  border-radius: 6px; font-weight: 700; font-size: clamp(1.15rem, 6vw, 1.3rem);
+  text-transform: uppercase; color: var(--fg);
+}
+.cell.sel { background: var(--sky); color: var(--sky-ink); }
+.cell.found { background: var(--gold); color: var(--gold-ink); }
+.marked { display: flex; flex-wrap: wrap; gap: 0.5rem; min-height: 2.6rem; align-items: center; }
+.tag {
+  min-height: 50px; padding: 0 1.1rem; border-radius: 999px; border: 2px solid var(--gold);
+  background: rgba(255, 211, 122, 0.16); color: var(--fg); font-weight: 700; font-size: 1.05rem;
+}
+.empty { color: var(--muted); font-size: 1.05rem; }
+
+/* Results */
+.elephants { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.4rem; }
+.el { display: block; width: 100%; height: auto; opacity: 0.28; }
+.el.on { opacity: 1; --ele-body: #ffd37a; --ele-shade: #f0b84f; --ele-deep: #d59a2e; --ele-tusk: #fff7e0; }
+.score { font-family: var(--font-word); font-weight: 600; font-size: 2.6rem; line-height: 1.05; }
+.rows { display: flex; flex-direction: column; }
+.row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 1rem;
+  padding: 0.8rem 0; border-bottom: 1px solid rgba(191, 224, 255, 0.35);
+}
+.row:last-child { border-bottom: 0; }
+.row .w { font-family: var(--font-word); font-weight: 500; font-size: 1.7rem; min-width: 0; overflow-wrap: anywhere; }
+.row .s { font-size: 1rem; font-weight: 700; text-align: right; flex-shrink: 0; }
+.row .s small { display: block; color: var(--muted); font-size: 0.9rem; font-weight: 500; }
+.ok { color: var(--good); }
+.miss { color: var(--bad); }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+    <symbol id="elephant" viewBox="0 0 200 150">
+      <path d="M170 68 C190 74 192 104 180 118 C176 124 168 122 170 114" fill="none" stroke="var(--ele-body)" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="52" y="100" width="20" height="38" rx="9" fill="var(--ele-deep)"/>
+      <rect x="112" y="100" width="20" height="38" rx="9" fill="var(--ele-deep)"/>
+      <path d="M36 76 C28 84 28 98 33 106" fill="none" stroke="var(--ele-shade)" stroke-width="3" stroke-linecap="round"/>
+      <ellipse cx="33" cy="108" rx="3" ry="5" fill="var(--ele-deep)"/>
+      <path d="M36 82 C34 52 66 38 104 38 C128 38 146 46 156 58 L156 100 C156 110 148 114 138 114 L66 114 C46 114 37 98 36 82 Z" fill="var(--ele-body)"/>
+      <rect x="76" y="102" width="20" height="36" rx="9" fill="var(--ele-body)"/>
+      <rect x="136" y="102" width="20" height="36" rx="9" fill="var(--ele-body)"/>
+      <circle cx="150" cy="72" r="25" fill="var(--ele-body)"/>
+      <path d="M158 86 C164 93 169 95 173 93" fill="none" stroke="var(--ele-tusk)" stroke-width="4" stroke-linecap="round"/>
+      <ellipse cx="134" cy="74" rx="17" ry="27" transform="rotate(-8 134 74)" fill="var(--ele-shade)"/>
+      <circle cx="157" cy="64" r="2.6" fill="var(--ele-eye)"/>
+    </symbol>
+  </svg>
+
+  <section class="screen" data-screen="setup">
+    <div class="group">
+      <svg class="mark" viewBox="0 0 200 150" aria-hidden="true"><use href="#elephant"></use></svg>
+      <h1>Elephant Memory</h1>
+      <p class="lede">Spend one minute with five words. Come back when your time is up and see how many you remember.</p>
+    </div>
+    <div class="group">
+      <span class="label" id="lblDelay">Come back in</span>
+      <div class="times" role="group" aria-labelledby="lblDelay" id="chips">
+        <button type="button" class="chip" data-min="1" aria-pressed="false"><b>1</b><span>minute</span></button>
+        <button type="button" class="chip" data-min="2" aria-pressed="false"><b>2</b><span>minutes</span></button>
+        <button type="button" class="chip" data-min="3" aria-pressed="false"><b>3</b><span>minutes</span></button>
+        <button type="button" class="chip" data-min="5" aria-pressed="false"><b>5</b><span>minutes</span></button>
+      </div>
+    </div>
+    <div class="group">
+      <span class="label" id="lblFmt">Quiz style</span>
+      <div class="styles" role="group" aria-labelledby="lblFmt" id="fmts">
+        <button type="button" class="style" data-fmt="typing" aria-pressed="false">
+          <i class="radio" aria-hidden="true"></i>
+          <span class="txt"><b>Type them</b><span>Write the words you remember</span></span>
+        </button>
+        <button type="button" class="style" data-fmt="search" aria-pressed="false">
+          <i class="radio" aria-hidden="true"></i>
+          <span class="txt"><b>Word search</b><span>Find them hidden in a grid</span></span>
+          <em class="pill">Harder</em>
+        </button>
+        <button type="button" class="style" data-fmt="mix" aria-pressed="false">
+          <i class="radio" aria-hidden="true"></i>
+          <span class="txt"><b>Mix it up</b><span>One or the other, chosen for you</span></span>
+        </button>
+      </div>
+    </div>
+    <div class="push">
+      <p class="note" id="startNote"></p>
+      <button type="button" class="btn" id="startBtn">Show my words</button>
+    </div>
+  </section>
+
+  <section class="screen" data-screen="study" hidden>
+    <div class="study-head">
+      <h2>Take your time.</h2>
+      <button type="button" class="listen" id="listenBtn" aria-label="Read the words aloud">
+        <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3.5 9.5v5H7l5 4.2V5.3L7 9.5H3.5z" fill="currentColor"/>
+          <path class="wave" d="M15.6 9.2a4 4 0 0 1 0 5.6"/>
+          <path class="wave" d="M18.4 6.6a7.6 7.6 0 0 1 0 10.8"/>
+        </svg>
+        <span id="listenText">Listen</span>
+      </button>
+    </div>
+    <div class="words" id="studyWords"></div>
+    <div class="push">
+      <div class="foot" role="timer" aria-label="Time left to look at the words">
+        <svg class="dial" viewBox="0 0 200 200" aria-hidden="true">
+          <circle cx="100" cy="100" r="96" fill="var(--face)" stroke="var(--sky)" stroke-width="4"/>
+          <g stroke="#ffffff" stroke-width="4" stroke-linecap="round">
+            <line x1="100" y1="10" x2="100" y2="22"/>
+            <line x1="100" y1="12" x2="100" y2="20" transform="rotate(30 100 100)"/>
+            <line x1="100" y1="12" x2="100" y2="20" transform="rotate(60 100 100)"/>
+            <line x1="100" y1="10" x2="100" y2="22" transform="rotate(90 100 100)"/>
+            <line x1="100" y1="12" x2="100" y2="20" transform="rotate(120 100 100)"/>
+            <line x1="100" y1="12" x2="100" y2="20" transform="rotate(150 100 100)"/>
+            <line x1="100" y1="10" x2="100" y2="22" transform="rotate(180 100 100)"/>
+            <line x1="100" y1="12" x2="100" y2="20" transform="rotate(210 100 100)"/>
+            <line x1="100" y1="12" x2="100" y2="20" transform="rotate(240 100 100)"/>
+            <line x1="100" y1="10" x2="100" y2="22" transform="rotate(270 100 100)"/>
+            <line x1="100" y1="12" x2="100" y2="20" transform="rotate(300 100 100)"/>
+            <line x1="100" y1="12" x2="100" y2="20" transform="rotate(330 100 100)"/>
+          </g>
+          <path id="dialWedge" d="" fill="var(--gold)"/>
+          <g id="dialHand">
+            <line x1="100" y1="100" x2="100" y2="30" stroke="var(--face)" stroke-width="11" stroke-linecap="round"/>
+            <line x1="100" y1="100" x2="100" y2="30" stroke="#ffffff" stroke-width="6" stroke-linecap="round"/>
+          </g>
+          <circle cx="100" cy="100" r="9" fill="#ffffff" stroke="var(--face)" stroke-width="3"/>
+        </svg>
+        <div class="secs"><b id="clockSecs">60</b><span id="clockUnit">seconds left</span></div>
+      </div>
+      <button type="button" class="btn-quiet" id="skipBtn">I'm ready</button>
+    </div>
+  </section>
+
+  <section class="screen waiting" data-screen="waiting" hidden>
+    <p class="back" id="backText"></p>
+    <p class="at" id="quizAtText"></p>
+    <p class="hint">Keep this page open in the background. You've got this.</p>
+    <button type="button" class="end" id="endBtn">End session</button>
+    <div class="lane" aria-hidden="true"><div class="walker"><svg viewBox="0 0 200 150"><use href="#elephant"></use></svg></div></div>
+  </section>
+
+  <section class="screen ready" data-screen="ready" hidden>
+    <svg class="mark mark-sm" viewBox="0 0 200 150" aria-hidden="true"><use href="#elephant"></use></svg>
+    <h2>Welcome back!</h2>
+    <p class="lede">Let's see how many you remember. Your five words are waiting.</p>
+    <button type="button" class="btn" id="beginBtn">Start the quiz</button>
+  </section>
+
+  <section class="screen" data-screen="typing" hidden>
+    <div class="group">
+      <h2>What were the five words?</h2>
+      <p class="lede">Any order is fine, and close spellings count. Take your best shot.</p>
+    </div>
+    <form id="typingForm" autocomplete="off" novalidate>
+      <div class="fields" id="typingFields"></div>
+    </form>
+    <div class="push">
+      <button type="button" class="btn" id="checkBtn">Check answers</button>
+    </div>
+  </section>
+
+  <section class="screen" data-screen="search" hidden>
+    <div class="group">
+      <h2>Find your five words</h2>
+      <p class="lede">Seven words are hidden in the grid, and five of them are yours. Drag across a word to mark it.</p>
+    </div>
+    <div class="grid" id="grid" role="application" aria-label="Word search grid"></div>
+    <div class="group">
+      <span class="label">Marked words</span>
+      <div class="marked" id="marked"></div>
+    </div>
+    <div class="push">
+      <button type="button" class="btn" id="doneBtn">Done</button>
+    </div>
+  </section>
+
+  <section class="screen" data-screen="results" hidden>
+    <div class="group">
+      <span class="label" id="scoreLabel"></span>
+      <div class="elephants" id="scoreEls" role="img"></div>
+      <div class="score" id="scoreText"></div>
+      <p class="lede" id="scoreSub"></p>
+    </div>
+    <div class="rows" id="resultRows"></div>
+    <p class="note" id="extras" hidden></p>
+    <div class="push">
+      <button type="button" class="btn" id="againBtn">Play another round</button>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function () {
+    // ==LOGIC==
+  // Every word carries theme tags. A round never uses two words that share a tag,
+  // so cactus and desert (or river and lake) can't land in the same set.
+  var CATS = {
+    animal: "cat dog fox owl ant bee hen cow pig bat elk yak ape rat eel bear wolf deer frog goat lamb mole seal swan crab duck hawk lion toad mule newt wasp moth mink eagle horse sheep tiger zebra camel koala otter panda moose goose raven mouse snake shark whale bison hyena llama rabbit monkey donkey turtle lizard spider falcon parrot badger beaver weasel salmon oyster giraffe penguin dolphin lobster ladybug",
+    bird: "owl hen swan duck hawk eagle goose raven falcon parrot penguin crow dove wren robin finch",
+    sea: "crab seal eel shark whale dolphin lobster oyster salmon reef wave tide boat sail anchor shell coral beach harbor ocean lagoon pearl otter sailor ship dock fish",
+    food: "pie jam egg ham tea nut fig rice bread cake soup corn bean pear plum lime date apple lemon mango salad cheese cookie carrot tomato potato peanut pickle noodle muffin walnut radish pumpkin honey butter garlic pepper cherry orange salmon cocoa toast pasta olive onion melon grape berry candy sugar flour",
+    tools: "saw axe pin nail hook rope hammer needle wrench shovel ladder drill bolt screw brush tape glue",
+    home: "bed rug cup mug jar pan pot lamp sofa chair table desk door shelf couch pillow mirror kettle bucket basket drawer curtain carpet blanket window kitchen cellar napkin spoon fork plate bowl teacup clock stove fence chimney stairs",
+    clothing: "hat cap tie coat shoe sock boot belt scarf glove mitten jacket sandal slipper apron dress shirt skirt",
+    body: "arm leg toe hip lip eye ear chin knee elbow finger thumb nose neck hand foot",
+    landscape: "hill lake pond rock sand cliff river stream meadow forest valley canyon jungle island prairie glacier iceberg pebble boulder field ground cave dune bay marsh swamp ridge",
+    sky: "sun sky moon star cloud rain snow wind fog storm frost thunder breeze comet planet meteor rainbow",
+    desert: "cactus desert canyon camel sand dune oasis",
+    plant: "oak fir ivy fern rose tulip moss bush vine seed cactus willow flower garden orchard bamboo daisy clover lily palm pine maple grass leaf tree root",
+    transport: "car bus van jet cab ship boat train bike wagon rocket ferry bicycle truck sled cart plane taxi tram",
+    music: "drum harp horn flute bell piano violin guitar trumpet fiddle song tune choir",
+    building: "barn mill inn hut shed cabin castle palace temple school office museum market stable stadium tower tunnel bridge village hotel church fort",
+    material: "tin gold iron lead steel copper silver brass granite marble leather cotton velvet fabric timber wool silk glass plaster clay wax rubber paper brick",
+    gem: "ruby opal jade pearl jewel emerald sapphire crystal quartz diamond amber",
+    color: "red tan blue pink gray green white black yellow orange purple brown",
+    quality: "shy calm warm cold soft loud wild bold kind neat slow fast gentle quiet bright careful curious fragile humble patient sturdy hollow",
+    action: "run sit jump walk swim sing wander whisper borrow gather polish remain travel wonder carry climb dance paint stir",
+    abstract: "idea dream hope fear joy luck voice story legend journey memory symbol riddle puzzle secret motion silence",
+    game: "ball kite chess dice card puzzle racket trophy goal toy",
+    school: "pen ink map book page note chalk paper pencil ticket letter poster stamp sketch ruler desk",
+    time: "day year week hour night dawn noon dusk summer winter autumn spring season morning sunset harvest",
+    people: "king queen monk pilot baker farmer doctor hunter mason sailor pirate wizard dancer giant knight nurse",
+    shape: "arc cube oval line ring circle spiral sphere cone star",
+    fire: "fire flame spark ember candle lantern torch beacon lamp smoke ash coal"
+  };
+  var TAGS = {};
+  Object.keys(CATS).forEach(function (cat) {
+    CATS[cat].split(/\s+/).forEach(function (w) {
+      if (!/^[a-z]{3,7}$/.test(w)) return;
+      (TAGS[w] = TAGS[w] || []).push(cat);
+    });
+  });
+  var WORDS = Object.keys(TAGS);
+  var BY_LEN = {};
+  WORDS.forEach(function (w) { (BY_LEN[w.length] = BY_LEN[w.length] || []).push(w); });
+
+  function shuffle(arr, rng) {
+    rng = rng || Math.random;
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(rng() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+  function related(a, b) { return a.indexOf(b) !== -1 || b.indexOf(a) !== -1; }
+  function sharesTag(a, b) { return TAGS[a].some(function (t) { return TAGS[b].indexOf(t) >= 0; }); }
+  // Five words of five different lengths (3 to 7 letters), no shared theme and no shared
+  // first letter, so they look and feel different from each other at a glance.
+  function pickWords(n, rng) {
+    var lens = shuffle([3, 4, 5, 6, 7], rng).slice(0, n);
+    for (var attempt = 0; attempt < 400; attempt++) {
+      var chosen = [], ok = true;
+      for (var i = 0; i < lens.length && ok; i++) {
+        var pool = shuffle(BY_LEN[lens[i]], rng), found = null;
+        for (var j = 0; j < pool.length; j++) {
+          var w = pool[j];
+          var fine = chosen.every(function (x) { return x[0] !== w[0] && !related(x, w) && !sharesTag(x, w); });
+          if (fine) { found = w; break; }
+        }
+        if (found) chosen.push(found); else ok = false;
+      }
+      if (ok) return shuffle(chosen, rng);
+    }
+    return shuffle(WORDS, rng).slice(0, n);
+  }
+  function pickDecoys(targets, n, rng) {
+    var chosen = [];
+    var pool = shuffle(WORDS, rng);
+    for (var i = 0; i < pool.length && chosen.length < n; i++) {
+      var w = pool[i];
+      var all = targets.concat(chosen);
+      var clash = all.some(function (x) { return x === w || related(x, w); });
+      if (!clash) chosen.push(w);
+    }
+    return chosen;
+  }
+
+  function normalize(s) { return String(s || "").toLowerCase().replace(/[^a-z]/g, ""); }
+  function lev(a, b) {
+    var prev = [], cur = [], i, j;
+    for (j = 0; j <= b.length; j++) prev[j] = j;
+    for (i = 1; i <= a.length; i++) {
+      cur = [i];
+      for (j = 1; j <= b.length; j++) {
+        cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      }
+      prev = cur;
+    }
+    return prev[b.length];
+  }
+  // Order does not matter. Exact matches claim answers first, then close spellings.
+  function gradeTyped(targets, answers) {
+    var ans = answers.map(normalize);
+    var used = ans.map(function () { return false; });
+    var res = targets.map(function (t) { return { word: t, typed: null, ok: false }; });
+    res.forEach(function (r) {
+      var k = ans.findIndex(function (a, i) { return !used[i] && a === r.word; });
+      if (k >= 0) { used[k] = true; r.typed = ans[k]; r.ok = true; }
+    });
+    res.forEach(function (r) {
+      if (r.ok) return;
+      var tol = r.word.length >= 5 ? 1 : 0;
+      var best = -1, bestD = 99;
+      ans.forEach(function (a, i) {
+        if (used[i] || !a) return;
+        var d = lev(a, r.word);
+        if (d <= tol && d < bestD) { best = i; bestD = d; }
+      });
+      if (best >= 0) { used[best] = true; r.typed = ans[best]; r.ok = true; }
+    });
+    return res;
+  }
+
+  var DIRS = [[0, 1], [1, 0], [1, 1], [-1, 1]]; // all read left-to-right or top-to-bottom
+  var ALPHA = "abcdefghijklmnopqrstuvwxyz";
+  function buildGrid(words, size, rng) {
+    rng = rng || Math.random;
+    var sorted = words.slice().sort(function (a, b) { return b.length - a.length; });
+    for (var attempt = 0; attempt < 80; attempt++) {
+      var grid = [];
+      for (var r0 = 0; r0 < size; r0++) grid.push(new Array(size).fill(""));
+      var placements = [];
+      var ok = true;
+      for (var wi = 0; wi < sorted.length && ok; wi++) {
+        var w = sorted[wi], placed = false;
+        for (var t = 0; t < 250 && !placed; t++) {
+          var d = DIRS[Math.floor(rng() * DIRS.length)];
+          var r = Math.floor(rng() * size), c = Math.floor(rng() * size);
+          var er = r + d[0] * (w.length - 1), ec = c + d[1] * (w.length - 1);
+          if (er < 0 || er >= size || ec < 0 || ec >= size) continue;
+          var fits = true, i;
+          for (i = 0; i < w.length; i++) {
+            var ch = grid[r + d[0] * i][c + d[1] * i];
+            if (ch && ch !== w[i]) { fits = false; break; }
+          }
+          if (!fits) continue;
+          var cells = [];
+          for (i = 0; i < w.length; i++) {
+            grid[r + d[0] * i][c + d[1] * i] = w[i];
+            cells.push([r + d[0] * i, c + d[1] * i]);
+          }
+          placements.push({ word: w, cells: cells });
+          placed = true;
+        }
+        if (!placed) ok = false;
+      }
+      if (ok) {
+        for (var a = 0; a < size; a++) for (var b = 0; b < size; b++) {
+          if (!grid[a][b]) grid[a][b] = ALPHA[Math.floor(rng() * 26)];
+        }
+        return { grid: grid, placements: placements };
+      }
+    }
+    return null;
+  }
+
+  function linePath(r0, c0, r1, c1, n) {
+    var dr = r1 - r0, dc = c1 - c0, adr = Math.abs(dr), adc = Math.abs(dc);
+    if (adr === 0 && adc === 0) return [[r0, c0]];
+    var sr = 0, sc = 0, len;
+    if (adc >= 2 * adr) { sc = Math.sign(dc); len = adc; }
+    else if (adr >= 2 * adc) { sr = Math.sign(dr); len = adr; }
+    else { sr = Math.sign(dr); sc = Math.sign(dc); len = Math.max(adr, adc); }
+    var path = [];
+    for (var i = 0; i <= len; i++) {
+      var r = r0 + sr * i, c = c0 + sc * i;
+      if (r < 0 || r >= n || c < 0 || c >= n) break;
+      path.push([r, c]);
+    }
+    return path;
+  }
+  function cellsKey(cells) { return cells.map(function (p) { return p[0] + "," + p[1]; }).join("|"); }
+  function matchPlacement(path, placements) {
+    var k = cellsKey(path), kr = cellsKey(path.slice().reverse());
+    for (var i = 0; i < placements.length; i++) {
+      var pk = cellsKey(placements[i].cells);
+      if (pk === k || pk === kr) return placements[i];
+    }
+    return null;
+  }
+  // ==END LOGIC==
+
+  // ---------- app ----------
+  var KEY = "elephant-memory.v1";
+  var TITLE = "Elephant Memory";
+  var STUDY_MS = 60000;
+  var GRID = 7;
+  var TIMES = [1, 2, 3, 5];
+  var S = { phase: "setup", words: [], minutes: 1, format: "typing", studyEnd: 0, quizAt: 0 };
+  var search = null, drag = null, cellEls = [], chimeTimer = null, chimesLeft = 0, endArmed = null;
+  var audioCtx = null, dialRaf = 0, reduceMotion = false;
+  try { reduceMotion = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); } catch (e) {}
+
+  function $(id) { return document.getElementById(id); }
+  var screens = Array.prototype.slice.call(document.querySelectorAll("[data-screen]"));
+  var chips = Array.prototype.slice.call(document.querySelectorAll("#chips .chip"));
+  var fmtBtns = Array.prototype.slice.call(document.querySelectorAll("#fmts .style"));
+
+  function save() {
+    try {
+      var phase = S.phase;
+      if (phase === "typing" || phase === "search") phase = "ready";
+      if (phase === "results") phase = "setup";
+      localStorage.setItem(KEY, JSON.stringify({
+        phase: phase, words: phase === "setup" ? [] : S.words, minutes: S.minutes,
+        format: S.format, studyEnd: S.studyEnd, quizAt: S.quizAt
+      }));
+    } catch (e) {}
+  }
+  function readSaved() {
+    try { var raw = localStorage.getItem(KEY); return raw ? JSON.parse(raw) : null; } catch (e) { return null; }
+  }
+  function show(phase) {
+    S.phase = phase;
+    screens.forEach(function (s) { s.hidden = s.getAttribute("data-screen") !== phase; });
+    document.documentElement.setAttribute("data-phase", phase);
+    if (phase !== "study") stopSpeech();
+    if (phase === "study") startDial();
+    window.scrollTo(0, 0);
+  }
+  function fmtTime(ts) {
+    return new Date(ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  }
+
+  // ---------- sound and alerts ----------
+  function unlockAudio() {
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      if (!audioCtx) audioCtx = new AC();
+      if (audioCtx.state === "suspended") audioCtx.resume();
+    } catch (e) {}
+  }
+  function chime() {
+    if (!audioCtx) return;
+    try {
+      var t0 = audioCtx.currentTime;
+      [[660, 0], [880, 0.35]].forEach(function (n) {
+        var o = audioCtx.createOscillator(), g = audioCtx.createGain(), at = t0 + n[1];
+        o.type = "sine"; o.frequency.value = n[0];
+        g.gain.setValueAtTime(0.0001, at);
+        g.gain.exponentialRampToValueAtTime(0.18, at + 0.03);
+        g.gain.exponentialRampToValueAtTime(0.0001, at + 1.2);
+        o.connect(g); g.connect(audioCtx.destination);
+        o.start(at); o.stop(at + 1.3);
+      });
+    } catch (e) {}
+  }
+  function askNotify() {
+    try { if ("Notification" in window && Notification.permission === "default") Notification.requestPermission(); } catch (e) {}
+  }
+  function notify() {
+    try {
+      if ("Notification" in window && Notification.permission === "granted") {
+        new Notification("Time to see how many you remember", { body: "Come on back. Your five words are waiting." });
+      }
+    } catch (e) {}
+  }
+  function stopChimes() { clearTimeout(chimeTimer); chimeTimer = null; chimesLeft = 0; }
+  function chimeLoop() {
+    chime();
+    chimesLeft--;
+    if (chimesLeft > 0) {
+      chimeTimer = setTimeout(function () {
+        if (S.phase === "ready") chimeLoop(); else stopChimes();
+      }, 25000);
+    }
+  }
+
+  // ---------- read aloud (the device's own text-to-speech) ----------
+  var canSpeak = false;
+  try { canSpeak = "speechSynthesis" in window && "SpeechSynthesisUtterance" in window; } catch (e) {}
+  var speech = { on: false, run: 0 };
+  $("listenBtn").hidden = !canSpeak;
+  function renderListen() {
+    var b = $("listenBtn");
+    b.classList.toggle("on", speech.on);
+    $("listenText").textContent = speech.on ? "Stop" : "Listen";
+    b.setAttribute("aria-label", speech.on ? "Stop reading the words" : "Read the words aloud");
+  }
+  function stopSpeech() {
+    if (!canSpeak) return;
+    speech.run++; speech.on = false;
+    try { window.speechSynthesis.cancel(); } catch (e) {}
+    renderListen();
+  }
+  function speakWords() {
+    if (!canSpeak) return;
+    if (speech.on) { stopSpeech(); return; }
+    var run = ++speech.run, i = 0;
+    speech.on = true; renderListen();
+    try { window.speechSynthesis.cancel(); } catch (e) {}
+    (function next() {
+      if (run !== speech.run) return;
+      if (i >= S.words.length) { speech.on = false; renderListen(); return; }
+      var u = new SpeechSynthesisUtterance(S.words[i++]);
+      u.lang = "en-US"; u.rate = 0.8;
+      var done = false;
+      function after() { if (done) return; done = true; setTimeout(next, 900); }
+      u.onend = after; u.onerror = after;
+      setTimeout(after, 5000);
+      try { window.speechSynthesis.speak(u); } catch (e) { after(); }
+    })();
+  }
+  $("listenBtn").addEventListener("click", speakWords);
+
+  // ---------- analog study clock ----------
+  function polar(angle, r) {
+    var rad = angle * Math.PI / 180;
+    return [(100 + r * Math.sin(rad)).toFixed(2), (100 - r * Math.cos(rad)).toFixed(2)];
+  }
+  // frac is how much of the minute has passed (0 to 1). The gold wedge is the time still left.
+  function drawDial(frac) {
+    var f = Math.min(1, Math.max(0, frac)), a = f * 360, R = 72, d;
+    if (f < 0.0005) d = "M100 " + (100 - R) + " A" + R + " " + R + " 0 1 1 100 " + (100 + R) + " A" + R + " " + R + " 0 1 1 100 " + (100 - R) + " Z";
+    else if (f > 0.9995) d = "";
+    else {
+      var p = polar(a, R);
+      d = "M100 100 L" + p[0] + " " + p[1] + " A" + R + " " + R + " 0 " + (a < 180 ? 1 : 0) + " 1 100 " + (100 - R) + " Z";
+    }
+    $("dialWedge").setAttribute("d", d);
+    $("dialHand").setAttribute("transform", "rotate(" + a.toFixed(2) + " 100 100)");
+  }
+  function dialLoop() {
+    if (S.phase !== "study") { dialRaf = 0; return; }
+    var frac = 1 - Math.max(0, S.studyEnd - Date.now()) / STUDY_MS;
+    if (reduceMotion) frac = Math.floor(frac * 60) / 60;
+    drawDial(frac);
+    dialRaf = requestAnimationFrame(dialLoop);
+  }
+  function startDial() {
+    drawDial(1 - Math.max(0, S.studyEnd - Date.now()) / STUDY_MS);
+    if (!dialRaf) dialRaf = requestAnimationFrame(dialLoop);
+  }
+
+  // ---------- setup ----------
+  function renderSetup() {
+    chips.forEach(function (b) { b.setAttribute("aria-pressed", String(S.minutes === +b.getAttribute("data-min"))); });
+    fmtBtns.forEach(function (b) { b.setAttribute("aria-pressed", String(S.format === b.getAttribute("data-fmt"))); });
+    $("startNote").textContent = "Look for a minute, then come back in " + S.minutes + (S.minutes === 1 ? " minute" : " minutes") + " for your quiz.";
+  }
+  chips.forEach(function (b) {
+    b.addEventListener("click", function () { S.minutes = +b.getAttribute("data-min"); renderSetup(); save(); });
+  });
+  fmtBtns.forEach(function (b) {
+    b.addEventListener("click", function () { S.format = b.getAttribute("data-fmt"); renderSetup(); save(); });
+  });
+
+  // ---------- phases ----------
+  function renderStudyWords() {
+    var box = $("studyWords");
+    box.textContent = "";
+    S.words.forEach(function (w) {
+      var d = document.createElement("div"); d.className = "word"; d.textContent = w; box.appendChild(d);
+    });
+  }
+  function startSession() {
+    unlockAudio(); askNotify();
+    S.words = pickWords(5);
+    S.studyEnd = Date.now() + STUDY_MS;
+    renderStudyWords(); renderListen();
+    show("study"); save(); tick();
+  }
+  function renderWaiting() {
+    var mins = Math.max(1, Math.ceil((S.quizAt - Date.now()) / 60000));
+    $("backText").textContent = "Nice work. Come back in " + mins + (mins === 1 ? " minute." : " minutes.");
+    $("quizAtText").textContent = "Quiz at " + fmtTime(S.quizAt);
+  }
+  function beginWaiting(from) {
+    S.quizAt = from + S.minutes * 60000;
+    renderWaiting();
+    show("waiting"); save();
+  }
+  function beginReady(silent) {
+    show("ready");
+    document.title = "Quiz time · " + TITLE;
+    save();
+    if (!silent) { notify(); stopChimes(); chimesLeft = 4; chimeLoop(); }
+  }
+  function tick() {
+    var now = Date.now();
+    if (S.phase === "study") {
+      var left = Math.max(0, S.studyEnd - now), secs = Math.ceil(left / 1000);
+      $("clockSecs").textContent = secs;
+      $("clockUnit").textContent = secs === 1 ? "second left" : "seconds left";
+      if (left <= 0) beginWaiting(S.studyEnd);
+    }
+    if (S.phase === "waiting") {
+      renderWaiting();
+      if (now >= S.quizAt) beginReady(false);
+    }
+  }
+  setInterval(tick, 1000);
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) tick(); });
+
+  $("startBtn").addEventListener("click", startSession);
+  $("skipBtn").addEventListener("click", function () { beginWaiting(Date.now()); });
+  $("endBtn").addEventListener("click", function () {
+    var b = $("endBtn");
+    if (!endArmed) {
+      b.textContent = "Tap again to end";
+      endArmed = setTimeout(function () { b.textContent = "End session"; endArmed = null; }, 3000);
+    } else {
+      clearTimeout(endArmed); endArmed = null; b.textContent = "End session"; toSetup();
+    }
+  });
+  function toSetup() {
+    stopChimes(); document.title = TITLE; S.words = [];
+    show("setup"); renderSetup(); save();
+  }
+  $("againBtn").addEventListener("click", toSetup);
+
+  $("beginBtn").addEventListener("click", function () {
+    unlockAudio(); stopChimes(); document.title = TITLE;
+    var mode = S.format === "mix" ? (Math.random() < 0.5 ? "typing" : "search") : S.format;
+    if (mode === "search") startSearch(); else startTyping();
+  });
+
+  // ---------- typing quiz ----------
+  function startTyping() {
+    var box = $("typingFields");
+    box.textContent = "";
+    for (var i = 0; i < 5; i++) {
+      var inp = document.createElement("input");
+      inp.type = "text"; inp.className = "field"; inp.id = "ans" + i;
+      inp.setAttribute("aria-label", "Word " + (i + 1));
+      inp.setAttribute("autocomplete", "off"); inp.setAttribute("autocapitalize", "off");
+      inp.setAttribute("autocorrect", "off"); inp.setAttribute("spellcheck", "false");
+      inp.addEventListener("keydown", function (e) {
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        var idx = +this.id.slice(3);
+        if (idx < 4) $("ans" + (idx + 1)).focus(); else checkTyping();
+      });
+      box.appendChild(inp);
+    }
+    show("typing");
+    $("ans0").focus();
+  }
+  function checkTyping() {
+    var answers = [];
+    for (var i = 0; i < 5; i++) answers.push($("ans" + i).value);
+    var res = gradeTyped(S.words, answers);
+    showResults("Typed from memory", res.map(function (r) {
+      var note = r.ok && r.typed !== r.word ? "you wrote " + r.typed : "";
+      return { word: r.word, ok: r.ok, note: note };
+    }), []);
+  }
+  $("checkBtn").addEventListener("click", checkTyping);
+  $("typingForm").addEventListener("submit", function (e) { e.preventDefault(); });
+
+  // ---------- word search quiz ----------
+  function startSearch() {
+    var decoys = pickDecoys(S.words, 2);
+    var built = buildGrid(S.words.concat(decoys), GRID);
+    if (!built) { startTyping(); return; }
+    search = { grid: built.grid, placements: built.placements, found: [] };
+    var el = $("grid");
+    el.textContent = "";
+    el.style.setProperty("--n", GRID);
+    cellEls = [];
+    for (var r = 0; r < GRID; r++) {
+      var row = [];
+      for (var c = 0; c < GRID; c++) {
+        var d = document.createElement("div");
+        d.className = "cell"; d.textContent = built.grid[r][c];
+        d.setAttribute("data-r", r); d.setAttribute("data-c", c);
+        el.appendChild(d); row.push(d);
+      }
+      cellEls.push(row);
+    }
+    drag = null;
+    renderMarked(); paint();
+    show("search");
+  }
+  function paint() {
+    var found = {}, sel = {};
+    search.found.forEach(function (f) { f.cells.forEach(function (p) { found[p[0] + "," + p[1]] = true; }); });
+    if (drag) drag.path.forEach(function (p) { sel[p[0] + "," + p[1]] = true; });
+    for (var r = 0; r < GRID; r++) for (var c = 0; c < GRID; c++) {
+      var k = r + "," + c, cl = cellEls[r][c].classList;
+      cl.toggle("found", !!found[k]);
+      cl.toggle("sel", !!sel[k] && !found[k]);
+    }
+  }
+  function renderMarked() {
+    var box = $("marked");
+    box.textContent = "";
+    if (!search.found.length) {
+      var e = document.createElement("span"); e.className = "empty";
+      e.textContent = "Nothing marked yet. Take your time."; box.appendChild(e); return;
+    }
+    search.found.forEach(function (f) {
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "tag";
+      b.textContent = f.word + " ×";
+      b.setAttribute("aria-label", "Unmark " + f.word);
+      b.addEventListener("click", function () {
+        search.found = search.found.filter(function (x) { return x !== f; });
+        renderMarked(); paint();
+      });
+      box.appendChild(b);
+    });
+  }
+  function cellFrom(e) {
+    var el = document.elementFromPoint(e.clientX, e.clientY);
+    if (!el || el.getAttribute("data-r") === null) return null;
+    return { r: +el.getAttribute("data-r"), c: +el.getAttribute("data-c") };
+  }
+  var gridEl = $("grid");
+  gridEl.addEventListener("pointerdown", function (e) {
+    var cell = cellFrom(e);
+    if (!cell || !search) return;
+    e.preventDefault();
+    try { gridEl.setPointerCapture(e.pointerId); } catch (x) {}
+    drag = { r0: cell.r, c0: cell.c, path: [[cell.r, cell.c]] };
+    paint();
+  });
+  gridEl.addEventListener("pointermove", function (e) {
+    if (!drag) return;
+    var cell = cellFrom(e);
+    if (!cell) return;
+    drag.path = linePath(drag.r0, drag.c0, cell.r, cell.c, GRID);
+    paint();
+  });
+  function endDrag() {
+    if (!drag) return;
+    var hit = drag.path.length > 1 ? matchPlacement(drag.path, search.placements) : null;
+    if (hit && !search.found.some(function (f) { return f.word === hit.word; })) {
+      search.found.push({ word: hit.word, cells: hit.cells });
+      renderMarked();
+    }
+    drag = null; paint();
+  }
+  gridEl.addEventListener("pointerup", endDrag);
+  gridEl.addEventListener("pointercancel", endDrag);
+
+  $("doneBtn").addEventListener("click", function () {
+    var foundWords = search.found.map(function (f) { return f.word; });
+    var rows = S.words.map(function (w) { return { word: w, ok: foundWords.indexOf(w) >= 0, note: "" }; });
+    var extras = foundWords.filter(function (w) { return S.words.indexOf(w) < 0; });
+    showResults("Found in the word search", rows, extras);
+  });
+
+  // ---------- results ----------
+  var SVG_NS = "http://www.w3.org/2000/svg";
+  function showResults(label, rows, extras) {
+    var n = rows.filter(function (r) { return r.ok; }).length;
+    $("scoreLabel").textContent = label;
+    var els = $("scoreEls");
+    els.textContent = "";
+    els.setAttribute("aria-label", n + " out of 5 elephants");
+    for (var i = 0; i < 5; i++) {
+      var s = document.createElementNS(SVG_NS, "svg");
+      s.setAttribute("viewBox", "0 0 200 150");
+      s.setAttribute("class", "el" + (i < n ? " on" : ""));
+      s.setAttribute("aria-hidden", "true");
+      var u = document.createElementNS(SVG_NS, "use");
+      u.setAttribute("href", "#elephant");
+      s.appendChild(u); els.appendChild(s);
+    }
+    $("scoreText").textContent = n + "/5 elephants";
+    $("scoreSub").textContent =
+      n === 5 ? "All five. Wonderful! Try a longer wait next time." :
+      n >= 3 ? "Nice work. You remembered most of them." :
+      n >= 1 ? "A good start. Each round gets easier." :
+      "Not this time, and that's okay. Take another look and try again.";
+    var box = $("resultRows");
+    box.textContent = "";
+    rows.forEach(function (r) {
+      var row = document.createElement("div"); row.className = "row";
+      var w = document.createElement("span"); w.className = "w"; w.textContent = r.word;
+      var s2 = document.createElement("span"); s2.className = "s " + (r.ok ? "ok" : "miss");
+      s2.textContent = r.ok ? "Remembered" : "Not this time";
+      if (r.note) { var sm = document.createElement("small"); sm.textContent = r.note; s2.appendChild(sm); }
+      row.appendChild(w); row.appendChild(s2); box.appendChild(row);
+    });
+    var ex = $("extras");
+    if (extras.length) {
+      ex.hidden = false;
+      ex.textContent = "Also marked, but not on your list: " + extras.join(", ") + ".";
+    } else { ex.hidden = true; ex.textContent = ""; }
+    show("results"); save();
+  }
+
+  // ---------- boot ----------
+  var saved = readSaved();
+  if (saved) {
+    S.minutes = TIMES.indexOf(saved.minutes) >= 0 ? saved.minutes : 1;
+    S.format = ["typing", "search", "mix"].indexOf(saved.format) >= 0 ? saved.format : "typing";
+  }
+  renderSetup(); renderListen();
+  show("setup");
+  if (saved && saved.words && saved.words.length === 5 && ["study", "waiting", "ready"].indexOf(saved.phase) >= 0) {
+    S.words = saved.words; S.studyEnd = saved.studyEnd || 0; S.quizAt = saved.quizAt || 0;
+    if (saved.phase === "study") { renderStudyWords(); show("study"); tick(); }
+    else if (saved.phase === "waiting") { renderWaiting(); show("waiting"); tick(); }
+    else { beginReady(true); }
+  }
+})();
+</script>
+</body>
+</html>
